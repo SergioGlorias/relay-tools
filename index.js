@@ -1,7 +1,14 @@
 const { writeFile, readFile } = require("node:fs/promises")
 
-
 let token = process.env.LICHESS_TOKEN
+
+fetch("https://lichess.org/api/account", {
+    headers: {
+        'Authorization': 'Bearer ' + token,
+    },
+})
+    .then(res => res.json())
+    .then(json => console.info("ACC USED: ", json.username))
 
 async function fetchGames() {
     const API_URL = 'https://lichess.org/api/stream/games-by-users?withCurrentGames=true';
@@ -15,7 +22,7 @@ async function fetchGames() {
                 'Authorization': 'Bearer ' + token,
                 'Accept': 'application/x-ndjson',
             },
-            body: "bolus2,gmbibi,iamstraw,ricky8632200,promacherrrr,chess0281"
+            body: "LeelaKnightOdds,A-Liang"
         });
 
         if (!response.ok) {
@@ -39,7 +46,14 @@ async function fetchGames() {
 
                     const file = await readFile("ids.txt", { encoding: "utf-8" })
 
-                    let ids = file.split(" ")
+                    let ids = file.trim().split(" ")
+
+                    if ([25, 37].includes(data.status) && ids.includes(data.id)) {
+                        let s = ids.filter(i => i !== data.id).join(" ").trim()
+                        await writeFile("ids.txt", s, { encoding: "utf-8" })
+                        console.info("Broadcast update: ", (await updateRound(s)).status)
+                        continue;
+                    }
 
                     if (ids.includes(data.id)) continue;
 
@@ -51,20 +65,7 @@ async function fetchGames() {
 
                     console.log(s)
 
-                    const round = await fetch("https://lichess.org/broadcast/round/oSGqYi3q/edit", {
-                        headers: { 
-                            'Authorization': 'Bearer ' + token, 
-                            'Content-Type': 'application/json' 
-                        },
-                        method: "POST",
-                        body: JSON.stringify({
-                            name: "Match",
-                            syncIds: s,
-                            startsAt: 1734033600000
-                        })
-                    }).then(res => res.json())
-
-                    console.log(round)
+                    console.info("Broadcast update: ", (await updateRound(s)).status)
 
                 } catch (err) {
                     console.warn('Erro a dar parse:', line, err);
@@ -81,3 +82,19 @@ async function fetchGames() {
 }
 
 fetchGames();
+
+
+function updateRound(s) {
+    return fetch("https://lichess.org/broadcast/round/4EupTC5M/edit", {
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        method: "POST",
+        body: JSON.stringify({
+            name: "Match",
+            syncIds: s,
+            startsAt: 1734033600000
+        })
+    })
+}
